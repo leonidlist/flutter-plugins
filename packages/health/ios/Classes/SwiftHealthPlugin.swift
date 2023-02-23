@@ -48,6 +48,9 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
     let SLEEP_IN_BED = "SLEEP_IN_BED"
     let SLEEP_ASLEEP = "SLEEP_ASLEEP"
     let SLEEP_AWAKE = "SLEEP_AWAKE"
+    let SLEEP_ASLEEP_CORE = "SLEEP_ASLEEP_CORE"
+    let SLEEP_ASLEEP_DEEP = "SLEEP_ASLEEP_DEEP"
+    let SLEEP_ASLEEP_REM = "SLEEP_ASLEEP_REM"
     let EXERCISE_TIME = "EXERCISE_TIME"
     let WORKOUT = "WORKOUT"
     let HEADACHE_UNSPECIFIED = "HEADACHE_UNSPECIFIED"
@@ -161,6 +164,10 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             try! writeWorkoutData(call: call, result: result)
         }
         
+        else if (call.method.elementsEqual("writeSleepData")) {
+            try! writeSleepData(call: call, result: result)
+        }
+        
         /// Handle hasPermission
         else if (call.method.elementsEqual("hasPermissions")){
             try! hasPermissions(call: call, result: result)
@@ -168,7 +175,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         
         /// Handle delete data
         else if (call.method.elementsEqual("delete")){
-            try! delete(call: call, result: result)
+            delete(call: call, result: result)
         }
         
     }
@@ -403,6 +410,39 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         })
     }
     
+    func writeSleepData(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
+        guard let arguments = call.arguments as? NSDictionary,
+              var value = (arguments["value"] as? Int),
+              value >= 0 && value <= 5,
+              let startTime = (arguments["startTime"] as? NSNumber),
+              let endTime = (arguments["endTime"] as? NSNumber)
+        else {
+            throw PluginError(message: "Invalid Arguments")
+        }
+        
+        if #available(iOS 16, *) {} else {
+            if value > 2 {
+                value = 1
+            }
+        }
+        
+        let dateFrom = Date(timeIntervalSince1970: startTime.doubleValue / 1000)
+        let dateTo = Date(timeIntervalSince1970: endTime.doubleValue / 1000)
+        
+        let sample: HKObject
+        
+        sample = HKCategorySample(type: HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!, value: value, start: dateFrom, end: dateTo)
+        
+        HKHealthStore().save(sample, withCompletion: { (success, error) in
+            if let err = error {
+                print("Error saving sleep data. Sample: \(err.localizedDescription)")
+            }
+            DispatchQueue.main.async {
+                result(success)
+            }
+        })
+    }
+    
     func delete(call: FlutterMethodCall, result: @escaping FlutterResult) {
         let arguments = call.arguments as? NSDictionary
         let dataTypeKey = (arguments?["dataTypeKey"] as? String)!
@@ -417,22 +457,52 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         let predicate = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: .strictStartDate)
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
 
-        let deleteQuery = HKSampleQuery(sampleType: dataType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sortDescriptor]) { [self] x, samplesOrNil, error in
-
+        let deleteQuery = HKSampleQuery(sampleType: dataType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sortDescriptor]) { x, samplesOrNil, error in
+            
             guard let samplesOrNil = samplesOrNil, error == nil else {
                 // Handle the error if necessary
                 print("Error deleting \(dataType)")
                 return
             }
-
-            // Delete the retrieved objects from the HealthKit store
-            HKHealthStore().delete(samplesOrNil) { (success, error) in
-                if let err = error {
+            
+            switch samplesOrNil {
+            case var (samples as [HKCategorySample]) as Any:
+                if (dataTypeKey == self.SLEEP_IN_BED) {
+                    samples = samples.filter { $0.value == 0 }
+                }
+                if (dataTypeKey == self.SLEEP_ASLEEP) {
+                    samples = samples.filter { $0.value == 1 }
+                }
+                if (dataTypeKey == self.SLEEP_AWAKE) {
+                    samples = samples.filter { $0.value == 2 }
+                }
+                if (dataTypeKey == self.SLEEP_ASLEEP_CORE) {
+                    samples = samples.filter { $0.value == 3 }
+                }
+                if (dataTypeKey == self.SLEEP_ASLEEP_DEEP) {
+                    samples = samples.filter { $0.value == 4 }
+                }
+                if(dataTypeKey == self.SLEEP_ASLEEP_REM) {
+                    samples = samples.filter { $0.value == 5 }
+                }
+                HKHealthStore().delete(samples) { (success, error) in
+                    if let err = error {
                         print("Error deleting \(dataType) Sample: \(err.localizedDescription)")
                     }
                     DispatchQueue.main.async {
                         result(success)
                     }
+                }
+            default:
+                // Delete the retrieved objects from the HealthKit store
+                HKHealthStore().delete(samplesOrNil) { (success, error) in
+                    if let err = error {
+                            print("Error deleting \(dataType) Sample: \(err.localizedDescription)")
+                        }
+                        DispatchQueue.main.async {
+                            result(success)
+                        }
+                }
             }
         }
 
@@ -488,6 +558,15 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                 }
                 if (dataTypeKey == self.SLEEP_AWAKE) {
                     samplesCategory = samplesCategory.filter { $0.value == 2 }
+                }
+                if (dataTypeKey == self.SLEEP_ASLEEP_CORE) {
+                    samplesCategory = samplesCategory.filter { $0.value == 3 }
+                }
+                if (dataTypeKey == self.SLEEP_ASLEEP_DEEP) {
+                    samplesCategory = samplesCategory.filter { $0.value == 4 }
+                }
+                if(dataTypeKey == self.SLEEP_ASLEEP_REM) {
+                    samplesCategory = samplesCategory.filter { $0.value == 5 }
                 }
                 if (dataTypeKey == self.HEADACHE_UNSPECIFIED) {
                     samplesCategory = samplesCategory.filter { $0.value == 0 }
@@ -877,6 +956,12 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             workoutActivityTypeMap["SOCIAL_DANCE"] = HKWorkoutActivityType.socialDance
             workoutActivityTypeMap["PICKLEBALL"] = HKWorkoutActivityType.pickleball
             workoutActivityTypeMap["COOLDOWN"] = HKWorkoutActivityType.cooldown
+        }
+        
+        if #available(iOS 16.0, *) {
+            dataTypesDict[SLEEP_ASLEEP_CORE] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
+            dataTypesDict[SLEEP_ASLEEP_DEEP] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
+            dataTypesDict[SLEEP_ASLEEP_REM] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
         }
         
         // Concatenate heart events, headache and health data types (both may be empty)
