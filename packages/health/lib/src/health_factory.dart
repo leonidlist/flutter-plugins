@@ -218,7 +218,7 @@ class HealthFactory {
       HealthDataType.ELECTROCARDIOGRAM,
     }.contains(type))
       throw ArgumentError(
-          "$type - iOS doesnt support writing this data type in HealthKit");
+          "$type - iOS doesn't support writing this data type in HealthKit");
 
     // Assign default unit if not specified
     unit ??= _dataTypeToUnit[type]!;
