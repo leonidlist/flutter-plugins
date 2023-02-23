@@ -9,8 +9,9 @@ The plugin supports:
 - writing health data using the `writeHealthData` method.
 - writing workouts on iOS (Apple Health) & Android (Google Fit) using the `writeWorkout` method.
 - writing audiograms on iOS using the `writeAudiogram` method.
+- writing sleep data on iOS using the `writeSleepData` method.
 - accessing total step counts using the `getTotalStepsInInterval` method.
-- cleaning up dublicate data points via the `removeDuplicates` method.
+- cleaning up duplicate data points via the `removeDuplicates` method.
 - removing data of a given type in a selected period of time using the `delete` method.
 - writing blood pressure data in a single call using the `saveBloodPressure` method (Android only).
 
@@ -45,6 +46,9 @@ Note that for Android, the target phone **needs** to have [Google Fit](https://w
 | SLEEP_IN_BED                | MINUTES                 | yes     | yes         |                                                             |
 | SLEEP_ASLEEP                | MINUTES                 | yes     | yes         |                                                             |
 | SLEEP_AWAKE                 | MINUTES                 | yes     | yes         |                                                             |
+| SLEEP_ASLEEP_CORE           | MINUTES                 | yes     | yes         |                                                             |
+| SLEEP_ASLEEP_DEEP           | MINUTES                 | yes     | yes         |                                                             |
+| SLEEP_ASLEEP_REM            | MINUTES                 | yes     | yes         |                                                             |
 | WATER                       | LITER                   | yes     | yes         | On Android water requires a 3rd party app to be registered. |
 | EXERCISE_TIME               | MINUTES                 | yes     |             |                                                             |
 | WORKOUT                     | NO_UNIT                 | yes     | yes         |                                                             |
@@ -112,7 +116,7 @@ The client id will look something like `YOUR_CLIENT_ID.apps.googleusercontent.co
 
 ### Android Permissions
 
-Starting from API level 28 (Android 9.0) acessing some fitness data (e.g. Steps) requires a special permission.
+Starting from API level 28 (Android 9.0) accessing some fitness data (e.g. Steps) requires a special permission.
 
 To set it add the following line to your `AndroidManifest.xml` file.
 
@@ -129,9 +133,9 @@ Additionally, for Workouts: If the distance of a workout is requested then the l
 
 There's a `debug`, `main` and `profile` version which are chosen depending on how you start your app. In general, it's sufficient to add permission only to the `main` version.
 
-Beacuse this is labled as a `dangerous` protection level, the permission system will not grant it automaticlly and it requires the user's action.
+Because this is labeled as a `dangerous` protection level, the permission system will not grant it automatically and it requires the user's action.
 You can prompt the user for it using the [permission_handler](https://pub.dev/packages/permission_handler) plugin.
-Follow the plugin setup instructions and add the following line before requsting the data:
+Follow the plugin setup instructions and add the following line before requesting the data:
 
 ```
 await Permission.activityRecognition.request();
