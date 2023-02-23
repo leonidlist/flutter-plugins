@@ -126,6 +126,7 @@ class _HealthAppState extends State<HealthApp> {
       HealthDataType.WORKOUT, // Requires Google Fit on Android
       HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
       HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
+      HealthDataType.SLEEP_ASLEEP,
       // Uncomment these lines on iOS - only available on iOS
       // HealthDataType.AUDIOGRAM,
     ];
@@ -136,9 +137,11 @@ class _HealthAppState extends State<HealthApp> {
       HealthDataAccess.WRITE,
       HealthDataAccess.WRITE,
       HealthDataAccess.WRITE,
+      HealthDataAccess.WRITE,
       // HealthDataAccess.WRITE
     ];
     final permissions = [
+      HealthDataAccess.READ_WRITE,
       HealthDataAccess.READ_WRITE,
       HealthDataAccess.READ_WRITE,
       HealthDataAccess.READ_WRITE,
@@ -181,8 +184,12 @@ class _HealthAppState extends State<HealthApp> {
     );
 
     success &= await health.writeBloodPressure(120, 90, now, now);
-    success &= await health.writeHealthData(
-        3, HealthDataType.SLEEP_ASLEEP, now.subtract(Duration(hours: 3)), now);
+
+    success &= await health.writeSleepData(
+      HealthDataType.SLEEP_ASLEEP,
+      now.subtract(Duration(hours: 3)),
+      now,
+    );
 
     // Store an Audiogram
     // Uncomment these on iOS - only available on iOS

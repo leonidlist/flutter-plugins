@@ -247,6 +247,38 @@ class HealthFactory {
     return success ?? false;
   }
 
+  /// Saves sleep data into Apple Health or Google Fit.
+  ///
+  /// Returns true if successful, false otherwise.
+  ///
+  /// Parameters:
+  /// * [type] - the value's HealthDataType.
+  /// In case of it's lower than iOS 16 - data types `SLEEP_ASLEEP_REM`,
+  /// `SLEEP_ASLEEP_CORE`, `SLEEP_ASLEEP_DEEP` are not available
+  /// and by default we replace that types with `SLEEP_ASLEEP`.
+  /// * [startTime] - the start time when this [type] is measured.
+  ///   + It must be equal to or earlier than [endTime].
+  /// * [endTime] - the end time when this [type] is measured.
+  ///   + It must be equal to or later than [startTime].
+  Future<bool> writeSleepData(
+    HealthDataType type,
+    DateTime startTime,
+    DateTime endTime,
+  ) async {
+    if (startTime.isAfter(endTime)) {
+      throw ArgumentError("startTime must be equal or earlier than endTime");
+    }
+
+    final args = {
+      'value': _alignValue(type),
+      'startTime': startTime.millisecondsSinceEpoch,
+      'endTime': endTime.millisecondsSinceEpoch
+    };
+    final success = await _channel.invokeMethod('writeSleepData', args);
+
+    return success ?? false;
+  }
+
   /// Deletes all records of the given type for a given period of time
   ///
   /// Returns true if successful, false otherwise.
@@ -483,6 +515,12 @@ class HealthFactory {
         return 1;
       case HealthDataType.SLEEP_AWAKE:
         return 2;
+      case HealthDataType.SLEEP_ASLEEP_CORE:
+        return 3;
+      case HealthDataType.SLEEP_ASLEEP_DEEP:
+        return 4;
+      case HealthDataType.SLEEP_ASLEEP_REM:
+        return 5;
       case HealthDataType.HEADACHE_UNSPECIFIED:
         return 0;
       case HealthDataType.HEADACHE_NOT_PRESENT:
