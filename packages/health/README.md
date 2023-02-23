@@ -46,9 +46,9 @@ Note that for Android, the target phone **needs** to have [Google Fit](https://w
 | SLEEP_IN_BED                | MINUTES                 | yes     | yes         |                                                             |
 | SLEEP_ASLEEP                | MINUTES                 | yes     | yes         |                                                             |
 | SLEEP_AWAKE                 | MINUTES                 | yes     | yes         |                                                             |
-| SLEEP_ASLEEP_CORE           | MINUTES                 | yes     | yes         |                                                             |
-| SLEEP_ASLEEP_DEEP           | MINUTES                 | yes     | yes         |                                                             |
-| SLEEP_ASLEEP_REM            | MINUTES                 | yes     | yes         |                                                             |
+| SLEEP_ASLEEP_CORE           | MINUTES                 | yes     | no          |                                                             |
+| SLEEP_ASLEEP_DEEP           | MINUTES                 | yes     | no          |                                                             |
+| SLEEP_ASLEEP_REM            | MINUTES                 | yes     | no          |                                                             |
 | WATER                       | LITER                   | yes     | yes         | On Android water requires a 3rd party app to be registered. |
 | EXERCISE_TIME               | MINUTES                 | yes     |             |                                                             |
 | WORKOUT                     | NO_UNIT                 | yes     | yes         |                                                             |
