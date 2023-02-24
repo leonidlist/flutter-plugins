@@ -66,6 +66,9 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
   private var SLEEP_ASLEEP = "SLEEP_ASLEEP"
   private var SLEEP_AWAKE = "SLEEP_AWAKE"
   private var SLEEP_IN_BED = "SLEEP_IN_BED"
+  private var SLEEP_ASLEEP_CORE = "SLEEP_ASLEEP_CORE"
+  private var SLEEP_ASLEEP_DEEP = "SLEEP_ASLEEP_DEEP"
+  private var SLEEP_ASLEEP_REM = "SLEEP_ASLEEP_REM"
   private var WORKOUT = "WORKOUT"
 
   val workoutTypeMap = mapOf(
@@ -268,8 +271,23 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
       SLEEP_ASLEEP -> DataType.TYPE_SLEEP_SEGMENT
       SLEEP_AWAKE -> DataType.TYPE_SLEEP_SEGMENT
       SLEEP_IN_BED -> DataType.TYPE_SLEEP_SEGMENT
+      SLEEP_ASLEEP_CORE -> DataType.TYPE_SLEEP_SEGMENT
+      SLEEP_ASLEEP_DEEP -> DataType.TYPE_SLEEP_SEGMENT
+      SLEEP_ASLEEP_REM -> DataType.TYPE_SLEEP_SEGMENT
       WORKOUT -> DataType.TYPE_ACTIVITY_SEGMENT
       else -> throw IllegalArgumentException("Unsupported dataType: $type")
+    }
+  }
+
+  private fun dataTypeToSleepStage(type: String): Int {
+    return when (type) {
+      SLEEP_ASLEEP_DEEP -> SleepStages.SLEEP_DEEP
+      SLEEP_ASLEEP_CORE -> SleepStages.SLEEP_LIGHT
+      SLEEP_ASLEEP_REM -> SleepStages.SLEEP_REM
+      SLEEP_ASLEEP -> SleepStages.SLEEP
+      SLEEP_IN_BED -> SleepStages.SLEEP
+      SLEEP_AWAKE -> SleepStages.AWAKE
+      else -> throw IllegalArgumentException("Unsupported sleep data type: $type")
     }
   }
 
@@ -292,6 +310,9 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
       SLEEP_ASLEEP -> Field.FIELD_SLEEP_SEGMENT_TYPE
       SLEEP_AWAKE -> Field.FIELD_SLEEP_SEGMENT_TYPE
       SLEEP_IN_BED -> Field.FIELD_SLEEP_SEGMENT_TYPE
+      SLEEP_ASLEEP_CORE -> Field.FIELD_SLEEP_SEGMENT_TYPE
+      SLEEP_ASLEEP_DEEP -> Field.FIELD_SLEEP_SEGMENT_TYPE
+      SLEEP_ASLEEP_REM -> Field.FIELD_SLEEP_SEGMENT_TYPE
       WORKOUT -> Field.FIELD_ACTIVITY
       else -> throw IllegalArgumentException("Unsupported dataType: $type")
     }
@@ -465,6 +486,62 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
     if (dataType == DataType.TYPE_SLEEP_SEGMENT) {
       typesBuilder.accessSleepSessions(FitnessOptions.ACCESS_READ)
     }
+    val fitnessOptions = typesBuilder.build()
+    try {
+      val googleSignInAccount =
+        GoogleSignIn.getAccountForExtension(context!!.applicationContext, fitnessOptions)
+      Fitness.getHistoryClient(context!!.applicationContext, googleSignInAccount)
+        .insertData(dataSet)
+        .addOnSuccessListener {
+          Log.i("FLUTTER_HEALTH::SUCCESS", "Dataset added successfully!")
+          result.success(true)
+        }
+        .addOnFailureListener(errHandler(result, "There was an error adding the dataset"))
+    } catch (e3: Exception) {
+      result.success(false)
+    }
+  }
+
+  private fun writeSleepData(call: MethodCall, result: Result) {
+
+    if (context == null) {
+      result.success(false)
+      return
+    }
+
+    val type = call.argument<String>("dataTypeKey")!!
+    val startTime = call.argument<Long>("startTime")!!
+    val endTime = call.argument<Long>("endTime")!!
+
+    // Look up data type and unit for the type key
+    val dataType = keyToHealthDataType(type)
+    val field = getField(type)
+
+    val typesBuilder = FitnessOptions.builder()
+    typesBuilder.addDataType(dataType, FitnessOptions.ACCESS_WRITE)
+    typesBuilder.accessSleepSessions(FitnessOptions.ACCESS_WRITE)
+
+    val dataSource = DataSource.Builder()
+      .setDataType(dataType)
+      .setType(DataSource.TYPE_RAW)
+      .setDevice(Device.getLocalDevice(context!!.applicationContext))
+      .setAppPackageName(context!!.applicationContext)
+      .build()
+
+    val builder = if (startTime == endTime)
+      DataPoint.builder(dataSource)
+        .setTimestamp(startTime, TimeUnit.MILLISECONDS)
+    else
+      DataPoint.builder(dataSource)
+        .setTimeInterval(startTime, endTime, TimeUnit.MILLISECONDS)
+
+    val dataPoint = builder.setField(field, dataTypeToSleepStage(type))
+        .build()
+
+    val dataSet = DataSet.builder(dataSource)
+      .add(dataPoint)
+      .build()
+
     val fitnessOptions = typesBuilder.build()
     try {
       val googleSignInAccount =
@@ -809,6 +886,78 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
             }
           }
         }
+
+        if (type == SLEEP_ASLEEP_CORE) {
+          var dataSets = response.getDataSet(session)
+          for (dataSet in dataSets) {
+            for (dataPoint in dataSet.dataPoints) {
+              if(dataPoint.getValue(Field.FIELD_SLEEP_SEGMENT_TYPE).asInt() == 4) {
+                healthData.add(
+                  hashMapOf(
+                    "value" to dataPoint.getEndTime(TimeUnit.MINUTES) - dataPoint.getStartTime(
+                      TimeUnit.MINUTES
+                    ),
+                    "date_from" to dataPoint.getStartTime(TimeUnit.MILLISECONDS),
+                    "date_to" to dataPoint.getEndTime(TimeUnit.MILLISECONDS),
+                    "unit" to "MINUTES",
+                    "source_name" to (dataPoint.originalDataSource.appPackageName
+                      ?: (dataPoint.originalDataSource.device?.model
+                        ?: "unknown")),
+                    "source_id" to dataPoint.originalDataSource.streamIdentifier
+                  )
+                )
+              }
+            }
+          }
+        }
+
+        if (type == SLEEP_ASLEEP_DEEP) {
+          var dataSets = response.getDataSet(session)
+          for (dataSet in dataSets) {
+            for (dataPoint in dataSet.dataPoints) {
+              if(dataPoint.getValue(Field.FIELD_SLEEP_SEGMENT_TYPE).asInt() == 5) {
+                healthData.add(
+                  hashMapOf(
+                    "value" to dataPoint.getEndTime(TimeUnit.MINUTES) - dataPoint.getStartTime(
+                      TimeUnit.MINUTES
+                    ),
+                    "date_from" to dataPoint.getStartTime(TimeUnit.MILLISECONDS),
+                    "date_to" to dataPoint.getEndTime(TimeUnit.MILLISECONDS),
+                    "unit" to "MINUTES",
+                    "source_name" to (dataPoint.originalDataSource.appPackageName
+                      ?: (dataPoint.originalDataSource.device?.model
+                        ?: "unknown")),
+                    "source_id" to dataPoint.originalDataSource.streamIdentifier
+                  )
+                )
+              }
+            }
+          }
+        }
+
+        if (type == SLEEP_ASLEEP_REM) {
+          var dataSets = response.getDataSet(session)
+          for (dataSet in dataSets) {
+            for (dataPoint in dataSet.dataPoints) {
+              if(dataPoint.getValue(Field.FIELD_SLEEP_SEGMENT_TYPE).asInt() == 6) {
+                healthData.add(
+                  hashMapOf(
+                    "value" to dataPoint.getEndTime(TimeUnit.MINUTES) - dataPoint.getStartTime(
+                      TimeUnit.MINUTES
+                    ),
+                    "date_from" to dataPoint.getStartTime(TimeUnit.MILLISECONDS),
+                    "date_to" to dataPoint.getEndTime(TimeUnit.MILLISECONDS),
+                    "unit" to "MINUTES",
+                    "source_name" to (dataPoint.originalDataSource.appPackageName
+                      ?: (dataPoint.originalDataSource.device?.model
+                        ?: "unknown")),
+                    "source_id" to dataPoint.originalDataSource.streamIdentifier
+                  )
+                )
+              }
+            }
+          }
+        }
       }
       Handler(context!!.mainLooper).run { result.success(healthData) }
     }
@@ -1021,6 +1170,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
       "requestAuthorization" -> requestAuthorization(call, result)
       "getData" -> getData(call, result)
       "writeData" -> writeData(call, result)
+      "writeSleepData" -> writeSleepData(call, result)
       "delete" -> delete(call, result)
       "getTotalStepsInInterval" -> getTotalStepsInInterval(call, result)
       "writeWorkoutData" -> writeWorkoutData(call, result)
