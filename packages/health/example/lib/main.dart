@@ -47,8 +47,7 @@ class _HealthAppState extends State<HealthApp> {
       HealthDataType.WORKOUT,
       HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
       HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
-      // Uncomment these lines on iOS - only available on iOS
-      // HealthDataType.AUDIOGRAM
+      HealthDataType.SLEEP_ASLEEP,
     ];
 
     // with coresponsing permissions
@@ -60,7 +59,7 @@ class _HealthAppState extends State<HealthApp> {
       HealthDataAccess.READ,
       HealthDataAccess.READ,
       HealthDataAccess.READ,
-      // HealthDataAccess.READ,
+      HealthDataAccess.READ,
     ];
 
     // get data within the last 24 hours
@@ -69,9 +68,13 @@ class _HealthAppState extends State<HealthApp> {
     // requesting access to the data types before reading them
     // note that strictly speaking, the [permissions] are not
     // needed, since we only want READ access.
-    bool requested =
-        await health.requestAuthorization(types, permissions: permissions);
-    print('requested: $requested');
+    var requested = false;
+    bool? hasPermissions =
+        await HealthFactory.hasPermissions(types, permissions: permissions);
+    if (hasPermissions == false) {
+      requested =
+          await health.requestAuthorization(types, permissions: permissions);
+    }
 
     // If we are trying to read Step Count, Workout, Sleep or other data that requires
     // the ACTIVITY_RECOGNITION permission, we need to request the permission first.
@@ -157,35 +160,35 @@ class _HealthAppState extends State<HealthApp> {
     }
 
     // Store a count of steps taken
-    _nofSteps = Random().nextInt(10);
-    bool success = await health.writeHealthData(
-        _nofSteps.toDouble(), HealthDataType.STEPS, earlier, now);
+    // _nofSteps = Random().nextInt(10);
+    // bool success = await health.writeHealthData(
+    //     _nofSteps.toDouble(), HealthDataType.STEPS, earlier, now);
 
-    // Store a height
-    success &=
-        await health.writeHealthData(1.93, HealthDataType.HEIGHT, earlier, now);
+    // // Store a height
+    // success &=
+    //     await health.writeHealthData(1.93, HealthDataType.HEIGHT, earlier, now);
 
-    // Store a Blood Glucose measurement
-    _mgdl = Random().nextInt(10) * 1.0;
-    success &= await health.writeHealthData(
-        _mgdl, HealthDataType.BLOOD_GLUCOSE, now, now);
+    // // Store a Blood Glucose measurement
+    // _mgdl = Random().nextInt(10) * 1.0;
+    // success &= await health.writeHealthData(
+    //     _mgdl, HealthDataType.BLOOD_GLUCOSE, now, now);
 
-    // Store a workout eg. running
-    success &= await health.writeWorkoutData(
-      HealthWorkoutActivityType.RUNNING,
-      earlier,
-      now,
-      // The following are optional parameters
-      // and the UNITS are functional on iOS ONLY!
-      totalEnergyBurned: 230,
-      totalEnergyBurnedUnit: HealthDataUnit.KILOCALORIE,
-      totalDistance: 1234,
-      totalDistanceUnit: HealthDataUnit.FOOT,
-    );
+    // // Store a workout eg. running
+    // success &= await health.writeWorkoutData(
+    //   HealthWorkoutActivityType.RUNNING,
+    //   earlier,
+    //   now,
+    //   // The following are optional parameters
+    //   // and the UNITS are functional on iOS ONLY!
+    //   totalEnergyBurned: 230,
+    //   totalEnergyBurnedUnit: HealthDataUnit.KILOCALORIE,
+    //   totalDistance: 1234,
+    //   totalDistanceUnit: HealthDataUnit.FOOT,
+    // );
 
-    success &= await health.writeBloodPressure(120, 90, now, now);
+    // success &= await health.writeBloodPressure(120, 90, now, now);
 
-    success &= await health.writeSleepData(
+    final success = await health.writeSleepData(
       HealthDataType.SLEEP_ASLEEP,
       now.subtract(Duration(hours: 3)),
       now,

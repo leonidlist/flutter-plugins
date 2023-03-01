@@ -270,7 +270,9 @@ class HealthFactory {
     }
 
     final args = {
-      'value': _alignValue(type),
+      'value': Platform.isIOS
+          ? _alignSleepValue(type)
+          : type.toString().split('.')[1],
       'startTime': startTime.millisecondsSinceEpoch,
       'endTime': endTime.millisecondsSinceEpoch
     };
@@ -505,6 +507,26 @@ class HealthFactory {
       args,
     );
     return stepsCount;
+  }
+
+  int _alignSleepValue(HealthDataType type) {
+    switch (type) {
+      case HealthDataType.SLEEP_IN_BED:
+        return 0;
+      case HealthDataType.SLEEP_ASLEEP:
+        return 1;
+      case HealthDataType.SLEEP_AWAKE:
+        return 2;
+      case HealthDataType.SLEEP_ASLEEP_CORE:
+        return 3;
+      case HealthDataType.SLEEP_ASLEEP_DEEP:
+        return 4;
+      case HealthDataType.SLEEP_ASLEEP_REM:
+        return 5;
+      default:
+        throw HealthException(type,
+            "HealthDataType was not aligned correctly - please report bug at https://github.com/cph-cachet/flutter-plugins/issues");
+    }
   }
 
   int _alignValue(HealthDataType type) {

@@ -509,13 +509,13 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
       return
     }
 
-    val type = call.argument<String>("dataTypeKey")!!
     val startTime = call.argument<Long>("startTime")!!
     val endTime = call.argument<Long>("endTime")!!
+    val value = call.argument<String>("value")!!
 
     // Look up data type and unit for the type key
-    val dataType = keyToHealthDataType(type)
-    val field = getField(type)
+    val dataType = DataType.TYPE_SLEEP_SEGMENT
+    val field = Field.FIELD_SLEEP_SEGMENT_TYPE
 
     val typesBuilder = FitnessOptions.builder()
     typesBuilder.addDataType(dataType, FitnessOptions.ACCESS_WRITE)
@@ -528,15 +528,10 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
       .setAppPackageName(context!!.applicationContext)
       .build()
 
-    val builder = if (startTime == endTime)
-      DataPoint.builder(dataSource)
-        .setTimestamp(startTime, TimeUnit.MILLISECONDS)
-    else
-      DataPoint.builder(dataSource)
-        .setTimeInterval(startTime, endTime, TimeUnit.MILLISECONDS)
-
-    val dataPoint = builder.setField(field, dataTypeToSleepStage(type))
-        .build()
+    var dataPoint = DataPoint.builder(dataSource)
+      .setTimeInterval(startTime, endTime, TimeUnit.MILLISECONDS)
+      .setField(field, dataTypeToSleepStage(value))
+      .build()
 
     val dataSet = DataSet.builder(dataSource)
       .add(dataPoint)
